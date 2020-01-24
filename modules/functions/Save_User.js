@@ -14,7 +14,7 @@ module.exports = (MAIN, message, server) => {
       [message.author.id, user_name, server.name, , , , next_bot, quest_time, message.guild.id, user_name], function (error, user, fields) {
       if(error){ return console.error('[Save_User] ['+MAIN.Bot_Time(null,'stamp')+'] [bot.js] UNABLE TO ADD USER TO users TABLE',error); }
       else{
-        MAIN.sqlFunction('UPDATE info SET user_next_bot = ?',[next_bot],undefined,undefined);
+        MAIN.SQL_Function(MAIN, 'UPDATE info SET user_next_bot = ?', [next_bot], undefined, undefined);
         return console.log('[Save_User] ['+MAIN.Bot_Time(null,'stamp')+'] [bot.js] Added '+message.member.user.tag+' to the user table.');
       }
     });

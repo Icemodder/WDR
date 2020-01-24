@@ -1,7 +1,59 @@
 const Send_Quest = require('../embeds/quests.js');
 
-
 module.exports.run = async (MAIN, quest, area, server, timezone, role_id) => {
+  let quest_reward = 'NO REWARD SET', simple_reward = 'NO REWARD SET';
+  let reward_type = MAIN.reward_types[quest.rewards[0].type].text;
+
+  let pokemon_name = quest.locale.pokemon_name, form_name = quest.locale.form;
+
+  switch(reward_type){
+    case "Unset":
+      return console.error("UNSET QUEST", quest);
+    case "Experience points":
+      return console.error("EXPERIENCE QUEST", quest);
+
+    // ITEM REWARDS (EXCEPT STARDUST)
+    case "Items":
+      let item_reward = MAIN.items[quest.rewards[0].info.item_id].name;
+      let amount = quest.rewards[0].info.amount;
+      let quest_type = MAIN.quest_types[]
+      let pokemon_name = quest.locale.pokemon_name, form_name = quest.locale.form;
+
+      if(quest.rewards[0].info.amount > 1){
+        if(quest_reward.indexOf('Berry') >= 0){ quest_reward = quest_reward.toString().slice(0,-1)+'ies'; }
+        else{ quest_reward = quest_reward+'s'; }
+      }
+
+      simple_reward = MAIN.masterfile.item[quest.rewards[0].info.item_id];
+      quest_reward = quest.rewards[0].info.amount+' '+MAIN.masterfile.item[quest.rewards[0].info.item_id];
+      if(quest.rewards[0].info.amount > 1){
+        if(quest_reward.indexOf('Berry') >= 0){ quest_reward = quest_reward.toString().slice(0,-1)+'ies'; }
+        else{ quest_reward = quest_reward+'s'; }
+      } break;
+
+    // STARDUST REWARD
+    case "Stardust":
+      simple_reward = quest.rewards[0].info.amount;
+      quest_reward = simple_reward+' Stardust'; break;
+
+    case "Candy":
+      return console.error("CANDY QUEST", quest);
+
+    case "Avatar clothing":
+      return console.error("AVATAR CLOTHING QUEST", quest);
+
+    case "Quest": console.error('NO REWARD SET. REPORT THIS TO THE DISCORD ALONG WITH THE FOLLOWING:',quest); break;
+
+    // ENCOUNTER REWARDS
+    case "Pokémon encounter":
+      simple_reward = pokemon_name;
+      quest_reward = pokemon_name+' '+form_name+'Encounter'; break;
+      if(quest.rewards[0].info.shiny == true){
+        simple_reward = 'Shiny '+simple_reward;
+        quest_reward = 'Shiny '+quest_reward;
+      } break;
+  }
+  return { reward: quest_reward, simple: simple_reward, form: form_name };
 
   // DETERMINE THE QUEST REWARD
   let reward = MAIN.Get_Quest_Reward(MAIN, quest);

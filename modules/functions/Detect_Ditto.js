@@ -19,7 +19,7 @@ module.exports = (MAIN, encounter) => {
           encounter.move_1 = 242;
           encounter.move_2 = 133;
           if(MAIN.debug.Ditto && MAIN.debug.Ditto == 'ENABLED'){
-            console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] Ditto Seen '+encounter.disguise);
+            console.log('['+MAIN.Bot_Time(null,'stamp')+'] [functions/Detect_Ditto.js] Ditto Seen', encounter.disguise);
           }
           return encounter;
         default:

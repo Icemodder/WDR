@@ -5,12 +5,13 @@ const InsideGeojson = require('point-in-geopolygon');
 const { exec } = require("child_process");
 const moment = require('moment-timezone');
 const Discord = require('discord.js');
-const MySQL = require('mysql');
 const Ontime = require('ontime');
 const GeoTz = require('geo-tz');
+const pvp = require('./pvp.js');
+const MySQL = require('mysql');
 const ini = require('ini');
 const fs = require('fs');
-const pvp = require('./pvp.js');
+
 //------------------------------------------------------------------------------
 //  INITIATE BOTS AND DISABLE UNNECESSARY EVENTS
 //------------------------------------------------------------------------------
@@ -228,6 +229,10 @@ process.on('uncaughtException', (err) => {
     MAIN.restart('due to an uncaught error'+err, process.env.fork)
 })
 //------------------------------------------------------------------------------
+//  INTERVAL UPDATES
+//------------------------------------------------------------------------------
+setInterval(function() { load_arrays(); }, 60000 * 360); // 6 HOURS
+//------------------------------------------------------------------------------
 //  LOAD ALL FUNCTIONS
 //------------------------------------------------------------------------------
 fs.readdir(__dirname+'/../functions', (err,functions) => {
@@ -273,7 +278,7 @@ MAIN.pmsf = MySQL.createConnection({
 //------------------------------------------------------------------------------
 //  LOAD BASE SCRIPTS
 //------------------------------------------------------------------------------
-var Emojis, Raid_Feed, Raid_Subscription, Quest_Feed, Quest_Subscription, Pokemon_Feed, 
+var Emojis, Raid_Feed, Raid_Subscription, Quest_Feed, Quest_Subscription, Pokemon_Feed,
 Pokemon_Subscription, PVP_Feed, PVP_Subscription, Lure_Feed, Lure_Subscription,
 Invasion_Feed, Invasion_Subscription;
 function load_data(){
@@ -310,20 +315,20 @@ function load_data(){
 //------------------------------------------------------------------------------
 //  CACHE DATA FROM JSONS
 //------------------------------------------------------------------------------
+  MAIN.grunts = MAIN.Fetch_JSON("https://raw.githubusercontent.com/whitewillem/PMSF/master/static/data/grunttype.json");
+  MAIN.items = MAIN.Fetch_JSON("https://raw.githubusercontent.com/whitewillem/PMSF/master/static/data/items.json");
+  MAIN.quests = MAIN.Fetch_JSON("https://raw.githubusercontent.com/whitewillem/PMSF/master/static/data/questtype.json");
+  MAIN.rewards = MAIN.Fetch_JSON("https://raw.githubusercontent.com/whitewillem/PMSF/master/static/data/rewardtype.json");
   delete require.cache[require.resolve('../../static/database.json')];
   MAIN.db = require('../../static/database.json');
   delete require.cache[require.resolve('../../static/types.json')];
   MAIN.types = require('../../static/types.json');
-  delete require.cache[require.resolve('../../static/grunts.json')];
-  MAIN.grunts = require('../../static/grunts.json');
   delete require.cache[require.resolve('../../static/masterfile.json')];
   MAIN.masterfile = require('../../static/masterfile.json');
   delete require.cache[require.resolve('../../static/cp_multiplier.json')];
   MAIN.cp_multiplier = require('../../static/cp_multiplier.json');
   delete require.cache[require.resolve('../../static/gyms.json')];
   MAIN.gym_notes = require('../../static/gyms.json');
-  delete require.cache[require.resolve('../../static/rewards.json')];
-  MAIN.rewards = require('../../static/rewards.json');
   delete require.cache[require.resolve('../../config/discords.json')];
   MAIN.Discords = require('../../config/discords.json');
   MAIN.config = ini.parse(fs.readFileSync('./config/config.ini', 'utf-8'));
@@ -394,9 +399,7 @@ MAIN.Color = {
 //------------------------------------------------------------------------------
 //  WEBHOOK PARSER
 //------------------------------------------------------------------------------
-setTimeout(function(){
-  MAIN.Active = true;
-},30000);
+setTimeout(function(){ MAIN.Active = true; },30000);
 MAIN.webhookParse = async (PAYLOAD) => {
   // IGNORE IF BOT HAS NOT BEEN FINISHED STARTUP
   if(MAIN.Active == undefined){ return; }
@@ -444,16 +447,9 @@ MAIN.webhookParse = async (PAYLOAD) => {
               Pokemon_Feed.run(MAIN, encounter, area, server, timezone);
               Pokemon_Subscription.run(MAIN, encounter, area, server, timezone);
               // ONLY RUN PVP WHEN POKEMON HAS IV CHECK
-              if(encounter.individual_attack != null) {     
-                // Change gender from proto number to word
-                let gender = encounter.gender;  
-                switch(gender){
-                  case 1: gender = 'male'; break;
-                  case 2: gender = 'female'; break;
-                  default: gender = 'all';
-                }         
-                encounter.great_league = await pvp.CalculatePossibleCPs(MAIN,encounter.pokemon_id, encounter.form, encounter.individual_attack, encounter.individual_defense, encounter.individual_stamina, encounter.pokemon_level, gender, "great");
-                encounter.ultra_league = await pvp.CalculatePossibleCPs(MAIN,encounter.pokemon_id, encounter.form, encounter.individual_attack, encounter.individual_defense, encounter.individual_stamina, encounter.pokemon_level, gender, "ultra");
+              if(encounter.individual_attack != null) {
+                encounter.great_league = await pvp.CalculatePossibleCPs(MAIN,encounter.pokemon_id, encounter.form, encounter.individual_attack, encounter.individual_defense, encounter.individual_stamina, encounter.pokemon_level, encounter.gender, "great");
+                encounter.ultra_league = await pvp.CalculatePossibleCPs(MAIN,encounter.pokemon_id, encounter.form, encounter.individual_attack, encounter.individual_defense, encounter.individual_stamina, encounter.pokemon_level, encounter.gender, "ultra");
                 PVP_Feed.run(MAIN, encounter, area, server, timezone);
                 PVP_Subscription.run(MAIN, encounter, area, server, timezone);
               }
@@ -495,7 +491,7 @@ MAIN.webhookParse = async (PAYLOAD) => {
 }
 
 // SQL QUERY FUNCTION
-MAIN.sqlFunction = (sql,data,logSuccess,logError) => {
+MAIN.SQL_Function = (MAIN, sql, data, logSuccess, logError) => {
   return new Promise(resolve => {
   	MAIN.pdb.query(sql, data, function (error, result, fields) {
   		if(error){ console.error(logError,error); }
@@ -513,7 +509,6 @@ MAIN.asyncForEach = async (array, callback) => {
 //------------------------------------------------------------------------------
 //  CREATE DATA ARRAYS
 //------------------------------------------------------------------------------
-setInterval(function() { load_arrays(); }, 21600000);
 MAIN.gym_array = []; MAIN.stop_array = []
 MAIN.pokemon_array = []; MAIN.park_array = [];
 function load_arrays(){
@@ -542,7 +537,7 @@ function load_arrays(){
     } else{ return; }
   });
   // NEST NAMES ARRAY
-  MAIN.pmsf.query(`SELECT * FROM nests WHERE name != 'Unknown Areaname'`, function (error, parks, fields){
+  MAIN.rdmdb.query(`SELECT * FROM nests WHERE name != 'Unknown Areaname'`, function (error, parks, fields){
     if(parks){
       parks.forEach((park,index) => {
         let record = {};
@@ -558,12 +553,12 @@ function load_arrays(){
 //------------------------------------------------------------------------------
 async function update_database(){
   return new Promise(async function(resolve, reject) {
-    await MAIN.sqlFunction('CREATE TABLE IF NOT EXISTS users (user_id TEXT, user_name TEXT, geofence TEXT, pokemon TEXT, quests TEXT, raids TEXT, paused TEXT, bot TEXT, alert_time TEXT, city TEXT)', undefined, undefined,'['+MAIN.Bot_Time(null,'stamp')+'] UNABLE TO CREATE THE user TABLE.');
-    await MAIN.sqlFunction('CREATE TABLE IF NOT EXISTS quest_alerts (user_id TEXT, quest TEXT, embed TEXT, area TEXT, bot TEXT, alert_time bigint, city text)', undefined, undefined,'['+MAIN.Bot_Time(null,'stamp')+'] UNABLE TO CREATE THE quest_alerts TABLE.');
-    await MAIN.sqlFunction('CREATE TABLE IF NOT EXISTS info (db_version INT)', undefined, undefined,'['+MAIN.Bot_Time(null,'stamp')+'] UNABLE TO CREATE THE info TABLE.');
+    await MAIN.SQL_Function('CREATE TABLE IF NOT EXISTS users (user_id TEXT, user_name TEXT, geofence TEXT, pokemon TEXT, quests TEXT, raids TEXT, paused TEXT, bot TEXT, alert_time TEXT, city TEXT)', undefined, undefined,'['+MAIN.Bot_Time(null,'stamp')+'] UNABLE TO CREATE THE user TABLE.');
+    await MAIN.SQL_Function('CREATE TABLE IF NOT EXISTS quest_alerts (user_id TEXT, quest TEXT, embed TEXT, area TEXT, bot TEXT, alert_time bigint, city text)', undefined, undefined,'['+MAIN.Bot_Time(null,'stamp')+'] UNABLE TO CREATE THE quest_alerts TABLE.');
+    await MAIN.SQL_Function('CREATE TABLE IF NOT EXISTS info (db_version INT)', undefined, undefined,'['+MAIN.Bot_Time(null,'stamp')+'] UNABLE TO CREATE THE info TABLE.');
     await MAIN.pdb.query('SELECT * FROM info', async function (error, row, fields) {
       if(!row || !row[0]){
-        await MAIN.sqlFunction('INSERT INTO info (db_version) VALUES (?)', [1], undefined,'['+MAIN.Bot_Time(null,'stamp')+'] UNABLE TO INSERT INTO THE info TABLE.')
+        await MAIN.SQL_Function('INSERT INTO info (db_version) VALUES (?)', [1], undefined,'['+MAIN.Bot_Time(null,'stamp')+'] UNABLE TO INSERT INTO THE info TABLE.')
           .then(async (db) => {
             let version = await update_each_version(1);
             return resolve(version);
@@ -586,8 +581,8 @@ async function update_each_version(version){
       else{
         let update_to = u+1;
         await MAIN.db[update_to].forEach(async (update,index) => {
-          await MAIN.sqlFunction(update.sql, update.data, '['+MAIN.Bot_Time(null,'stamp')+'] '+update.gLog, update.bLog);
-          await MAIN.sqlFunction('UPDATE info SET db_version = ? WHERE db_version = ?', [update_to,u], undefined, '[db_update] ['+MAIN.Bot_Time(null,'stamp')+'] UNABLE TO UPDATE THE info TABLE.');
+          await MAIN.SQL_Function(update.sql, update.data, '['+MAIN.Bot_Time(null,'stamp')+'] '+update.gLog, update.bLog);
+          await MAIN.SQL_Function('UPDATE info SET db_version = ? WHERE db_version = ?', [update_to,u], undefined, '[db_update] ['+MAIN.Bot_Time(null,'stamp')+'] UNABLE TO UPDATE THE info TABLE.');
           console.log('['+MAIN.Bot_Time(null,'stamp')+'] Database updated to Version '+update_to+'.');
         });
       }
@@ -634,8 +629,7 @@ async function bots_ready(){
       if(index == (MAIN.BOTS.length-1)){ return startup_notification(); }
     });
     this_bot.on('error', (error) => {
-        console.error('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] Discord client encountered an error: '+ error);
-        MAIN.restart('due to an error. '+error.code, process.env.fork);
+        console.error('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] ['+this_bot.user.tag+']',error);
     });
   });
 }
