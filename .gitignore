@@ -46,6 +46,7 @@ static/images/quest_tiles/*.jpg
 geofences/*.json
 static/*.DS_Store
 modules/*.DS_Store
+static/dbconvert.js
 oauth2-stripe/*.js
 oauth2-stripe/templates
 config/*.js
