@@ -52,3 +52,4 @@ oauth2-stripe/templates
 config/*.js
 Pokebot.js
 *.conf
+*.nonobfuscated
