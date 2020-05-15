@@ -1,6 +1,6 @@
 const Send_Pokemon = require(__dirname + '/../embeds/pokemon.js');
 const Send_PvP = require(__dirname + '/../embeds/pvp.js');
-const pvp = require(__dirname + '/../pvp.js');
+const pvp = require(__dirname + '/../base/pvp.js');
 
 
 module.exports.run = async (MAIN, sighting, area, server, timezone) => {

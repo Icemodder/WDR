@@ -13,7 +13,7 @@ module.exports.run = async (MAIN, BOT, message) => {
 
   if(message.channel.type == 'dm'){
 
-    MAIN.Discords.Servers.forEach( async (server,index) => {
+    MAIN.discord.Servers.forEach( async (server,index) => {
 
       // GET GUILD
       let guild = MAIN.guilds.cache.get(server.id);
@@ -30,9 +30,9 @@ module.exports.run = async (MAIN, BOT, message) => {
       else if(server.donor_role && !member.roles.cache.has(server.donor_role)){
         let donor_info = '';
         if(MAIN.config.log_channel){
-          let nondonor_embed = new MAIN.Discord.MessageEmbed()
+          let nondonor_embed = new MAIN.discordjs.MessageEmbed()
           .setColor('ff0000')
-          .addField('User attempted to use DM command, not a donor. ',member.user.username);
+          .addField('User attempted to use DM command, not a donor.', member.user.username);
           if(MAIN.config.donor_info){ donor_info = MAIN.config.donor_info}
           MAIN.Send_Embed(MAIN, 'member', 0, server.id, '', nondonor_embed, MAIN.config.log_channel);
         } else { console.log(MAIN.Color.red+'User attempted to use DM command, not a donor. '+member.user.username+MAIN.Color.reset); }
@@ -63,7 +63,7 @@ module.exports.run = async (MAIN, BOT, message) => {
   } else if(BOT == MAIN){
 
     // DISCORD SERVER FOR THE SUB CHANNEL
-    let server = MAIN.Discords.Servers.find(server => server.id == message.guild.id);
+    let server = MAIN.discord.Servers.find(server => server.id == message.guild.id);
     if(!server){ return; }
 
     // IGNORED CHANNELS
@@ -91,7 +91,7 @@ module.exports.run = async (MAIN, BOT, message) => {
       else if(server.donor_role && !member.roles.cache.has(server.donor_role)){
         if(MAIN.config.log_channel){
           let donor_info = '';
-          let nondonor_embed = new MAIN.Discord.MessageEmbed()
+          let nondonor_embed = new MAIN.discordjs.MessageEmbed()
           .setColor('ff0000')
           .addField('User attempted to use a subsciption command, not a donor. ',member.user.username);
           if(MAIN.config.donor_info){ donor_info = MAIN.config.donor_info}

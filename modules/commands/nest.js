@@ -9,7 +9,7 @@ module.exports.run = async (MAIN, message, prefix, discord) => {
   let nickname = '', park = '', embed = '';
 
   // LOAD ALL NESTS WITHIN DISCORD GEOFENCE TO AN ARRAY FOR FUZZY
-  let available_nests = [], nest_collection = new MAIN.Discord.Collection();
+  let available_nests = [], nest_collection = new MAIN.discordjs.Collection();
   await MAIN.park_array.forEach((nest,index) => {
     if(InsideGeojson.polygon(discord.geofence, [nest.lon,nest.lat])){
       available_nests.push(nest.name); nest_collection.set(nest.name, nest);
@@ -24,7 +24,7 @@ module.exports.run = async (MAIN, message, prefix, discord) => {
   }
   let avatar = message.author.displayAvatarURL;
 
-  let requestAction = new MAIN.Discord.MessageEmbed()
+  let requestAction = new MAIN.discordjs.MessageEmbed()
     .setAuthor(nickname, avatar)
     .setTitle('What Pokémon or Park do you want to find a nest for?')
     .setFooter('Type the name of desired Poké or Park, no command prefix required.');

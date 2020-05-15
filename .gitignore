@@ -25,6 +25,8 @@ hs_err_pid*
 config/config.ini.ex
 config/*ini
 config/*.json
+configs/*ini
+configs/*.json
 filters/*.json
 feeds/*.txt
 node_modules

@@ -1,5 +1,5 @@
 
-const pvp = require(__dirname + '/../pvp.js');
+const pvp = require(__dirname + '/../base/pvp.js');
 
 module.exports.run = async (MAIN, message, pokemon, server) => {
       // CHECK IF THE TARGET IS A USER
@@ -83,7 +83,7 @@ module.exports.run = async (MAIN, message, pokemon, server) => {
       // GET SPRITE IMAGE
       let sprite = MAIN.Get_Sprite(MAIN, pokemon);
 
-      let dex_embed = new MAIN.Discord.MessageEmbed()
+      let dex_embed = new MAIN.discordjs.MessageEmbed()
       .setColor(pokemon_color)
       .setThumbnail(sprite)
       .setTitle('**'+pokemon_name+'** '+form_name+'(#'+pokemon_id+') '+pokemon_type)

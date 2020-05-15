@@ -2,7 +2,7 @@ const GeoTz = require('geo-tz');
 
 const Send_Nest = require(__dirname + '/../embeds/nests.js');
 const InsideGeojson = require('point-in-geopolygon');
-const pvp = require(__dirname + '/../pvp.js');
+const pvp = require(__dirname + '/../base/pvp.js');
 
 module.exports.run = async (MAIN, message, prefix, discord) => {
 
@@ -14,7 +14,7 @@ module.exports.run = async (MAIN, message, prefix, discord) => {
     nickname = message.author.username;
   }
 
-  let requestAction = new MAIN.Discord.MessageEmbed()
+  let requestAction = new MAIN.discordjs.MessageEmbed()
   .setAuthor(nickname, message.author.displayAvatarURL)
   .setTitle('What Pokémon do you want a CP search string for?')
   .setFooter('Type the name of desired Poké, no command prefix required.');
@@ -58,7 +58,7 @@ async function pokemon_view(MAIN, message, nickname, pokemon, prefix, discord){
   }
 
   let sprite = MAIN.Get_Sprite(MAIN, pokemon);
-  let chart_embed = new MAIN.Discord.MessageEmbed()
+  let chart_embed = new MAIN.discordjs.MessageEmbed()
   .setColor(pokemon_color)
   .setThumbnail(sprite)
   .setTitle('**'+pokemon_name+'** Raid CP Chart')

@@ -1,5 +1,5 @@
 
-const pvp = require(__dirname + '/../pvp.js');
+const pvp = require(__dirname + '/../base/pvp.js');
 
 module.exports.run = async (MAIN, target, raid, raid_type, area, server, timezone, content, embed) => {
   let Embed_Config = require(__dirname + '/../../embeds/'+embed);

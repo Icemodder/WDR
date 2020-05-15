@@ -2,15 +2,13 @@
 //  MODULE REQUIREMENTS
 //------------------------------------------------------------------------------
 const InsideGeojson = require('point-in-geopolygon');
-const { exec } = require("child_process");
-const moment = require('moment-timezone');
+const Moment = require('moment-timezone');
 const Discord = require('discord.js');
 const MySQL = require('mysql');
 const Ontime = require('ontime');
 const GeoTz = require('geo-tz');
-const ini = require('ini');
-const fs = require('fs');
-const pvp = require('./pvp.js');
+const Ini = require('ini');
+const Fs = require('fs');
 //------------------------------------------------------------------------------
 //  INITIATE BOTS AND DISABLE UNNECESSARY EVENTS
 //------------------------------------------------------------------------------
@@ -39,22 +37,22 @@ const OSCAR = new Discord.Client(botOptions);
 //------------------------------------------------------------------------------
 //  INITIAL LOAD OF CONFIG AND DISCORDS
 //------------------------------------------------------------------------------
-MAIN.config = ini.parse(fs.readFileSync('./config/config.ini', 'utf-8'));
-MAIN.Discords = require('../../config/discords.json');
-MAIN.Discord = require('discord.js');
-MAIN.jsonEncode = require('form-urlencoded').default;
+MAIN.config = Ini.parse(Fs.readFileSync('./config/config.ini', 'utf-8'));
+MAIN.discord = require('../../config/discords.json');
+MAIN.discordjs = require('discord.js');
+MAIN.pvp = require('./pvp.js');
 //------------------------------------------------------------------------------
 //  TIME FUNCTION
 //------------------------------------------------------------------------------
 MAIN.Bot_Time = (time,type,timezone) => {
   switch(type){
-    case '1': return moment.unix(time).tz(timezone).format('h:mm A');
-    case '2': return moment().tz(timezone).format('HHmm');
-    case '3': return moment(time).tz(timezone).format('HHmm');
-    case 'quest': return moment().tz(timezone).format('dddd, MMMM Do')+' @ Midnight';
-    case 'stamp': return moment().format('HH:mmA');
-    case 'nest': return moment.unix(time).tz(timezone).format('MMM Do YYYY hA')
-    case 'unix': return moment(time).tz(timezone).format('X');
+    case '1': return Moment.unix(time).tz(timezone).format('h:mm A');
+    case '2': return Moment().tz(timezone).format('HHmm');
+    case '3': return Moment(time).tz(timezone).format('HHmm');
+    case 'quest': return Moment().tz(timezone).format('dddd, MMMM Do')+' @ Midnight';
+    case 'stamp': return Moment().format('HH:mmA');
+    case 'nest': return Moment.unix(time).tz(timezone).format('MMM Do YYYY hA')
+    case 'unix': return Moment(time).tz(timezone).format('X');
   }
 }
 //------------------------------------------------------------------------------
@@ -62,168 +60,162 @@ MAIN.Bot_Time = (time,type,timezone) => {
 //------------------------------------------------------------------------------
 MAIN.BOTS = []; MAIN.debug = MAIN.config.DEBUG;
 MAIN.logging = MAIN.config.CONSOLE_LOGS;
-var Emojis, Commands;
-//------------------------------------------------------------------------------
-//  INITIATE COMMAND LISTENER ONLY ONCE FOR MAIN PROCESS
-//------------------------------------------------------------------------------
-if(process.env.fork == 0){
-  delete require.cache[require.resolve('../filtering/commands.js')];
-  Commands = require('../filtering/commands.js');
-  // LOAD COMMANDS
-  MAIN.Commands = new Discord.Collection();
-  fs.readdir('./modules/commands', (err,files) => {
-    let command_files = files.filter(f => f.split('.').pop()==='js'), command_count = 0;
-    command_files.forEach((f,i) => {
-      delete require.cache[require.resolve('../commands/'+f)]; command_count++;
-      let command = require('../commands/'+f); MAIN.Commands.set(f.slice(0,-3), command);
-    });
+delete require.cache[require.resolve('../filtering/commands.js')];
+MAIN.command_filter = require('../filtering/commands.js');
+// LOAD COMMANDS
+MAIN.Commands = new Discord.Collection();
+Fs.readdir('./modules/commands', (err,files) => {
+  let command_files = files.filter(f => f.split('.').pop()==='js'), command_count = 0;
+  command_files.forEach((f,i) => {
+    delete require.cache[require.resolve('../commands/'+f)]; command_count++;
+    let command = require('../commands/'+f); MAIN.Commands.set(f.slice(0,-3), command);
   });
-  // COMMAND MESSAGE LISTENER
-  MAIN.on('message', message => {
-    return Commands.run(MAIN, MAIN, message);
-  });
+});
+// COMMAND MESSAGE LISTENER
+MAIN.on('message', message => {
+  return MAIN.command_filter.run(MAIN, MAIN, message);
+});
 
-  // SET ONTIME FUNCTIONS
-  var ontime_servers = [], ontime_times = [];
-  MAIN.Discords.Servers.forEach( function(server){
-    let server_purge = moment(), timezone = GeoTz(server.geofence[0][0][1], server.geofence[0][0][0]);
-    server_purge = moment.tz(server_purge, timezone[0]).set({hour:23,minute:50,second:0,millisecond:0});
-    server_purge = moment.tz(server_purge, MAIN.config.TIMEZONE).format('HH:mm:ss');
-    ontime_times.push(server_purge);
-    ontime_servers.push(server);
-  });
-  // GET CHANNELS FOR PURGING
-  MAIN.Purge_Channels = (command) => {
-    let now = moment().format('HH:mm')+':00';
-    ontime_servers.forEach(function(server){
-      if(server.purge_channels == 'ENABLED'){
-        let purge_time = moment(), timezone = GeoTz(server.geofence[0][1][1], server.geofence[0][1][0]);
-        purge_time = moment.tz(purge_time, timezone[0]).set({hour:23,minute:50,second:0,millisecond:0});
-        purge_time = moment.tz(purge_time, MAIN.config.TIMEZONE).format('HH:mm:ss');
-        if(now == purge_time || command == 'purge'){
-          for(var i = 0; i < server.channels_to_purge.length; i++){ clear_channel(server.channels_to_purge[i]); }
-        }
+// SET ONTIME FUNCTIONS
+var ontime_servers = [], ontime_times = [];
+MAIN.discord.Servers.forEach( function(server){
+  let server_purge = Moment(), timezone = GeoTz(server.geofence[0][0][1], server.geofence[0][0][0]);
+  server_purge = Moment.tz(server_purge, timezone[0]).set({hour:23,minute:50,second:0,millisecond:0});
+  server_purge = Moment.tz(server_purge, MAIN.config.TIMEZONE).format('HH:mm:ss');
+  ontime_times.push(server_purge);
+  ontime_servers.push(server);
+});
+// GET CHANNELS FOR PURGING
+MAIN.Purge_Channels = (command) => {
+  let now = Moment().format('HH:mm')+':00';
+  ontime_servers.forEach(function(server){
+    if(server.purge_channels == 'ENABLED'){
+      let purge_time = Moment(), timezone = GeoTz(server.geofence[0][1][1], server.geofence[0][1][0]);
+      purge_time = Moment.tz(purge_time, timezone[0]).set({hour:23,minute:50,second:0,millisecond:0});
+      purge_time = Moment.tz(purge_time, MAIN.config.TIMEZONE).format('HH:mm:ss');
+      if(now == purge_time || command == 'purge'){
+        for(var i = 0; i < server.channels_to_purge.length; i++){ clear_channel(server.channels_to_purge[i]); }
       }
-    }); return;
-  }
-  // PURGE CHANNEL
-  function clear_channel(channel_id){
-    return new Promise( async function(resolve) {
-      let channel = await MAIN.channels.cache.get(channel_id);
-      if(!channel) { resolve(false); return console.error('['+MAIN.Bot_Time(null,'stamp')+'] [Ontime] Could not find a channel with ID: '+channel_id); }
-      channel.fetchMessages({limit:99}).then(messages => {
-        channel.bulkDelete(messages).then(deleted => {
-          if(messages.size > 0){ clear_channel(channel_id).then(result => { return resolve(true); }); }
-          else{
-            console.log('[Ontime] ['+MAIN.Bot_Time(null,'stamp')+'] Purged all messages in '+channel.name+' ('+channel.id+')');
-            return resolve(true);
-          }
-        }).catch(console.error);
-      });
-    });
-  }
-  // CHANNEL PURGING
-  Ontime({ cycle: ontime_times }, function(ot) { MAIN.Purge_Channels(); return ot.done(); });
-  // CHECK DATABASE FOR UPGRADED OR REMOVED POKESTOPS
-  let check_time = moment();
-
-  // QUERY TO CLEAR QUESTS
-  Ontime({ cycle: "00:00:00" }, async function(ot) {
-    // FORCE CLEAR QUESTS
-    if(MAIN.config.rdmDB.Clear_Quests == 'ENABLED'){
-      MAIN.rdmdb.query('UPDATE pokestop SET quest_type = NULL, quest_target = NULL, quest_rewards = NULL, quest_template = NULL, quest_timestamp = NULL, quest_conditions = NULL;', function (error, record, fields) {
-        if(error){ console.error(error); }
-      }); console.log('[Ontime] ['+MAIN.Bot_Time(null,'stamp')+'] Ran Query to Clear Quests.');
     }
-
-    // TRIM POKEMON SIGHTINGS TABLE
-    if(MAIN.config.rdmDB.Trim_Pokemon_Table == 'ENABLED'){
-      let prune_time = parseInt(MAIN.config.rdmDB.Trim_Days)*86400;
-      MAIN.rdmdb.query('DELETE FROM pokemon WHERE updated < UNIX_TIMESTAMP()-'+prune_time, function (error, record, fields) {
-        if(error){ console.error(error); }
-      }); console.log('[Ontime] ['+MAIN.Bot_Time(null,'stamp')+'] Ran Query to trim Pokemon table.');
-    }
-  });
-  check_time = moment.tz(check_time, 'America/Los_Angeles').set({hour:23,minute:40,second:0,millisecond:0}).format('HH:mm:ss');
-  Ontime({ cycle: check_time }, async function(ot) {
-    if(MAIN.config.rdmDB.Remove_Upgraded_Pokestops == 'ENABLED'){
-      // UPDATE NAMES FOR ANY POSSIBLE NEW GYMS
-      await MAIN.rdmdb.query('UPDATE gym INNER JOIN pokestop ON gym.id = pokestop.id SET gym.name = pokestop.name, gym.url = pokestop.url WHERE gym.id = pokestop.id', function (error, record, fields) {
-        if(error){ console.error(error); }
-      });
-      // DELETE ANY POKESTOPS THAT HAVE BEEN UPGRADED TO GYMS
-      MAIN.rdmdb.query('DELETE FROM pokestop WHERE id IN (SELECT id FROM gym)', function (error, record, fields) {
-        if(error){ console.error(error); }
-      }); console.log('[Ontime] ['+MAIN.Bot_Time(null,'stamp')+'] Ran Query to remove Upgraded Pokestops.');
-    }
-    // QUERY TO REMOVE UNSEEN POKESTOPS
-    if(MAIN.config.rdmDB.Remove_Unseen_Pokestops == 'ENABLED'){
-      MAIN.rdmdb.query('DELETE FROM pokestop WHERE updated < UNIX_TIMESTAMP()-90000', function (error, record, fields) {
-        if(error){ console.error(error); }
-      }); console.log('[Ontime] ['+MAIN.Bot_Time(null,'stamp')+'] Ran Query to remove Stale Pokestops.');
-    }
-    if(MAIN.config.rdmDB.Update_Gyms && MAIN.config.rdmDB.Update_Gyms == 'ENABLED'){
-      exec('python ingress_scraper/scrape_portal.py -g -c ingress_scraper/default.ini', (err, stdout, stderr) => {
-        if(err) {
-          console.error('[database.js] [scrape_portal.py]', err);
-        } else { console.log('[Ontime] ['+MAIN.Bot_Time(null,'stamp')+'] Ran Gym Update Script.');; }
-      });
-    } return ot.done();
-  });
-  //------------------------------------------------------------------------------
-  //  DATABASE CHECK INTERVAL
-  //------------------------------------------------------------------------------
-  setInterval(function() {
-    // SEND QUEST DMs
-    MAIN.pdb.query(`SELECT * FROM quest_alerts WHERE alert_time < UNIX_TIMESTAMP()*1000`, function (error, alerts, fields) {
-      if(alerts && alerts[0]){
-        alerts.forEach( async (alert,index) => {
-          setTimeout(async function() {
-            let guild = MAIN.BOTS[alert.bot].guilds.cache.get(alert.discord_id);
-            let user = guild.members.fetch(alert.user_id).catch(error => { console.error('[BAD USER ID] '+alert.user_id, error); });
-            MAIN.BOTS[alert.bot].guilds.cache.get(alert.discord_id).members.fetch(alert.user_id).then( TARGET => {
-              let quest_embed = JSON.parse(alert.embed);
-              TARGET.send({ embed: quest_embed }).catch( error => {
-                return console.error('['+MAIN.Bot_Time(null,'stamp')+'] '+TARGET.user.tag+' ('+alert.user_id+') , CANNOT SEND THIS USER A MESSAGE.',error);
-              });
-            });
-          }, 2000*index);
-        });
-        if(MAIN.debug.Quests == 'ENABLED' && MAIN.debug.Subscriptions == 'ENABLED'){ console.log(MAIN.Color.pink+'[SUBSCRIPTIONS] ['+MAIN.Bot_Time(null,'stamp')+'] [bot.js] [QUESTS] Sent '+alerts.length+' Quest Alerts out.'+MAIN.Color.reset); }
-        MAIN.pdb.query(`DELETE FROM quest_alerts WHERE alert_time < UNIX_TIMESTAMP()*1000`, function (error, alerts, fields) { if(error){ console.error; } });
-      }
-    });
-    // CHECK FOR ENDED ACTIVE RAIDS
-    MAIN.pdb.query(`SELECT * FROM active_raids WHERE expire_time < UNIX_TIMESTAMP() AND boss_name != "expired" AND active = ?`, [true], function (error, active_raids, fields) {
-      if(active_raids && active_raids[0]){
-        active_raids.forEach( async (raid,index) => {
-          let raid_channel = MAIN.channels.cache.get(raid.raid_channel);
-          if(raid_channel){
-            raid_channel.setName('expired').catch(console.error)
-            raid_channel.send('Raid has ended, channel will delete in 15 minutes. Wrap up converation or join another raid lobby.').catch(console.error);
-          }
-          MAIN.pdb.query(`UPDATE active_raids set boss_name = "expired" WHERE gym_id = ?`, [raid.gym_id], function (error, fields) { if(error){ console.error; } });
-        });
-      }
-    });
-    // DELETE EXPIRED ACTIVE RAIDS
-    MAIN.pdb.query(`SELECT * FROM active_raids WHERE expire_time < UNIX_TIMESTAMP()-900`, function (error, active_raids, fields) {
-      if(active_raids && active_raids[0]){
-        active_raids.forEach( async (raid,index) => {
-          let raid_channel = MAIN.channels.cache.get(raid.raid_channel);
-          let raid_role = '';
-          if(raid_channel) {
-            raid_role = raid_channel.guild.roles.get(raid.role_id);
-            if(raid_role){ raid_role.delete().catch(console.error); }
-            raid_channel.delete().catch(console.error);
-            MAIN.pdb.query(`DELETE FROM active_raids WHERE gym_id = ?`, [raid.gym_id], function (error, active_raids, fields) { if(error){ console.error; } });
-          }
-        });
-        MAIN.pdb.query(`DELETE FROM active_raids WHERE expire_time < UNIX_TIMESTAMP()-900 AND raid_channel IS NULL`, function (error, active_raids, fields) { if(error){ console.error; } });
-      }
-    }); return;
-  }, 1000 * 60);
+  }); return;
 }
+// PURGE CHANNEL
+function clear_channel(channel_id){
+  return new Promise( async function(resolve) {
+    let channel = await MAIN.channels.cache.get(channel_id);
+    if(!channel) { resolve(false); return console.error('['+MAIN.Bot_Time(null,'stamp')+'] [Ontime] Could not find a channel with ID: '+channel_id); }
+    channel.fetchMessages({limit:99}).then(messages => {
+      channel.bulkDelete(messages).then(deleted => {
+        if(messages.size > 0){ clear_channel(channel_id).then(result => { return resolve(true); }); }
+        else{
+          console.log('[Ontime] ['+MAIN.Bot_Time(null,'stamp')+'] Purged all messages in '+channel.name+' ('+channel.id+')');
+          return resolve(true);
+        }
+      }).catch(console.error);
+    });
+  });
+}
+// CHANNEL PURGING
+Ontime({ cycle: ontime_times }, function(ot) { MAIN.Purge_Channels(); return ot.done(); });
+// CHECK DATABASE FOR UPGRADED OR REMOVED POKESTOPS
+let check_time = Moment();
+
+// QUERY TO CLEAR QUESTS
+Ontime({ cycle: "00:00:00" }, async function(ot) {
+  // FORCE CLEAR QUESTS
+  if(MAIN.config.rdmDB.Clear_Quests == 'ENABLED'){
+    MAIN.rdmdb.query('UPDATE pokestop SET quest_type = NULL, quest_target = NULL, quest_rewards = NULL, quest_template = NULL, quest_timestamp = NULL, quest_conditions = NULL;', function (error, record, fields) {
+      if(error){ console.error(error); }
+    }); console.log('[Ontime] ['+MAIN.Bot_Time(null,'stamp')+'] Ran Query to Clear Quests.');
+  }
+
+  // TRIM POKEMON SIGHTINGS TABLE
+  if(MAIN.config.rdmDB.Trim_Pokemon_Table == 'ENABLED'){
+    let prune_time = parseInt(MAIN.config.rdmDB.Trim_Days)*86400;
+    MAIN.rdmdb.query('DELETE FROM pokemon WHERE updated < UNIX_TIMESTAMP()-'+prune_time, function (error, record, fields) {
+      if(error){ console.error(error); }
+    }); console.log('[Ontime] ['+MAIN.Bot_Time(null,'stamp')+'] Ran Query to trim Pokemon table.');
+  }
+});
+check_time = Moment.tz(check_time, 'America/Los_Angeles').set({hour:23,minute:40,second:0,millisecond:0}).format('HH:mm:ss');
+Ontime({ cycle: check_time }, async function(ot) {
+  if(MAIN.config.rdmDB.Remove_Upgraded_Pokestops == 'ENABLED'){
+    // UPDATE NAMES FOR ANY POSSIBLE NEW GYMS
+    await MAIN.rdmdb.query('UPDATE gym INNER JOIN pokestop ON gym.id = pokestop.id SET gym.name = pokestop.name, gym.url = pokestop.url WHERE gym.id = pokestop.id', function (error, record, fields) {
+      if(error){ console.error(error); }
+    });
+    // DELETE ANY POKESTOPS THAT HAVE BEEN UPGRADED TO GYMS
+    MAIN.rdmdb.query('DELETE FROM pokestop WHERE id IN (SELECT id FROM gym)', function (error, record, fields) {
+      if(error){ console.error(error); }
+    }); console.log('[Ontime] ['+MAIN.Bot_Time(null,'stamp')+'] Ran Query to remove Upgraded Pokestops.');
+  }
+  // QUERY TO REMOVE UNSEEN POKESTOPS
+  if(MAIN.config.rdmDB.Remove_Unseen_Pokestops == 'ENABLED'){
+    MAIN.rdmdb.query('DELETE FROM pokestop WHERE updated < UNIX_TIMESTAMP()-90000', function (error, record, fields) {
+      if(error){ console.error(error); }
+    }); console.log('[Ontime] ['+MAIN.Bot_Time(null,'stamp')+'] Ran Query to remove Stale Pokestops.');
+  }
+  if(MAIN.config.rdmDB.Update_Gyms && MAIN.config.rdmDB.Update_Gyms == 'ENABLED'){
+    exec('python ingress_scraper/scrape_portal.py -g -c ingress_scraper/default.ini', (err, stdout, stderr) => {
+      if(err) {
+        console.error('[database.js] [scrape_portal.py]', err);
+      } else { console.log('[Ontime] ['+MAIN.Bot_Time(null,'stamp')+'] Ran Gym Update Script.');; }
+    });
+  } return ot.done();
+});
+//------------------------------------------------------------------------------
+//  DATABASE CHECK INTERVAL
+//------------------------------------------------------------------------------
+setInterval(function() {
+  // SEND QUEST DMs
+  MAIN.pdb.query(`SELECT * FROM quest_alerts WHERE alert_time < UNIX_TIMESTAMP()*1000`, function (error, alerts, fields) {
+    if(alerts && alerts[0]){
+      alerts.forEach( async (alert,index) => {
+        setTimeout(async function() {
+          let guild = MAIN.BOTS[alert.bot].guilds.cache.get(alert.discord_id);
+          let user = guild.members.fetch(alert.user_id).catch(error => { console.error('[BAD USER ID] '+alert.user_id, error); });
+          MAIN.BOTS[alert.bot].guilds.cache.get(alert.discord_id).members.fetch(alert.user_id).then( TARGET => {
+            let quest_embed = JSON.parse(alert.embed);
+            TARGET.send({ embed: quest_embed }).catch( error => {
+              return console.error('['+MAIN.Bot_Time(null,'stamp')+'] '+TARGET.user.tag+' ('+alert.user_id+') , CANNOT SEND THIS USER A MESSAGE.',error);
+            });
+          });
+        }, 2000*index);
+      });
+      if(MAIN.debug.Quests == 'ENABLED' && MAIN.debug.Subscriptions == 'ENABLED'){ console.log(MAIN.Color.pink+'[SUBSCRIPTIONS] ['+MAIN.Bot_Time(null,'stamp')+'] [bot.js] [QUESTS] Sent '+alerts.length+' Quest Alerts out.'+MAIN.Color.reset); }
+      MAIN.pdb.query(`DELETE FROM quest_alerts WHERE alert_time < UNIX_TIMESTAMP()*1000`, function (error, alerts, fields) { if(error){ console.error; } });
+    }
+  });
+  // CHECK FOR ENDED ACTIVE RAIDS
+  MAIN.pdb.query(`SELECT * FROM active_raids WHERE expire_time < UNIX_TIMESTAMP() AND boss_name != "expired" AND active = ?`, [true], function (error, active_raids, fields) {
+    if(active_raids && active_raids[0]){
+      active_raids.forEach( async (raid,index) => {
+        let raid_channel = MAIN.channels.cache.get(raid.raid_channel);
+        if(raid_channel){
+          raid_channel.setName('expired').catch(console.error)
+          raid_channel.send('Raid has ended, channel will delete in 15 minutes. Wrap up converation or join another raid lobby.').catch(console.error);
+        }
+        MAIN.pdb.query(`UPDATE active_raids set boss_name = "expired" WHERE gym_id = ?`, [raid.gym_id], function (error, fields) { if(error){ console.error; } });
+      });
+    }
+  });
+  // DELETE EXPIRED ACTIVE RAIDS
+  MAIN.pdb.query(`SELECT * FROM active_raids WHERE expire_time < UNIX_TIMESTAMP()-900`, function (error, active_raids, fields) {
+    if(active_raids && active_raids[0]){
+      active_raids.forEach( async (raid,index) => {
+        let raid_channel = MAIN.channels.cache.get(raid.raid_channel);
+        let raid_role = '';
+        if(raid_channel) {
+          raid_role = raid_channel.guild.roles.get(raid.role_id);
+          if(raid_role){ raid_role.delete().catch(console.error); }
+          raid_channel.delete().catch(console.error);
+          MAIN.pdb.query(`DELETE FROM active_raids WHERE gym_id = ?`, [raid.gym_id], function (error, active_raids, fields) { if(error){ console.error; } });
+        }
+      });
+      MAIN.pdb.query(`DELETE FROM active_raids WHERE expire_time < UNIX_TIMESTAMP()-900 AND raid_channel IS NULL`, function (error, active_raids, fields) { if(error){ console.error; } });
+    }
+  }); return;
+}, 1000 * 60);
 //------------------------------------------------------------------------------
 //  INTERVAL UPDATES
 //------------------------------------------------------------------------------
@@ -231,7 +223,7 @@ setInterval(function() { load_arrays(); }, 60000 * 360); // 6 HOURS
 //------------------------------------------------------------------------------
 //  LOAD ALL FUNCTIONS
 //------------------------------------------------------------------------------
-fs.readdir(__dirname+'/../functions', (err,functions) => {
+Fs.readdir(__dirname+'/../functions', (err,functions) => {
   let function_files = functions.filter(f => f.split('.').pop()==='js'), funct_count = 0;
   function_files.forEach((f,i) => {
     delete require.cache[require.resolve(__dirname+'/../functions/'+f)]; funct_count++;
@@ -241,12 +233,12 @@ fs.readdir(__dirname+'/../functions', (err,functions) => {
 //------------------------------------------------------------------------------
 //  LOAD ALL CHANNEL FILES
 //------------------------------------------------------------------------------
-const raid_channels = ini.parse(fs.readFileSync('./config/channels_raids.ini', 'utf-8'));
-const pokemon_channels = ini.parse(fs.readFileSync('./config/channels_pokemon.ini', 'utf-8'));
-const pvp_channels = ini.parse(fs.readFileSync('./config/channels_pvp.ini', 'utf-8'));
-const quest_channels = ini.parse(fs.readFileSync('./config/channels_quests.ini', 'utf-8'));
-const lure_channels = ini.parse(fs.readFileSync('./config/channels_lure.ini', 'utf-8'));
-const invasion_channels = ini.parse(fs.readFileSync('./config/channels_invasion.ini', 'utf-8'));
+const raid_channels = Ini.parse(Fs.readFileSync('./config/channels_raids.ini', 'utf-8'));
+const pokemon_channels = Ini.parse(Fs.readFileSync('./config/channels_pokemon.ini', 'utf-8'));
+const pvp_channels = Ini.parse(Fs.readFileSync('./config/channels_pvp.ini', 'utf-8'));
+const quest_channels = Ini.parse(Fs.readFileSync('./config/channels_quests.ini', 'utf-8'));
+const lure_channels = Ini.parse(Fs.readFileSync('./config/channels_lure.ini', 'utf-8'));
+const invasion_channels = Ini.parse(Fs.readFileSync('./config/channels_invasion.ini', 'utf-8'));
 //------------------------------------------------------------------------------
 //  LOAD BASE SCRIPTS
 //------------------------------------------------------------------------------
@@ -274,7 +266,7 @@ MAIN.pmsf = MySQL.createConnection({
 //------------------------------------------------------------------------------
 //  LOAD BASE SCRIPTS
 //------------------------------------------------------------------------------
-var Emojis, Raid_Feed, Raid_Subscription, Quest_Feed, Quest_Subscription, Pokemon_Feed,
+var Raid_Feed, Raid_Subscription, Quest_Feed, Quest_Subscription, Pokemon_Feed,
 Pokemon_Subscription, PVP_Feed, PVP_Subscription, Lure_Feed, Lure_Subscription,
 Invasion_Feed, Invasion_Subscription;
 async function load_data(){
@@ -305,7 +297,6 @@ async function load_data(){
   Invasion_Feed = require('../filtering/invasion.js');
   delete require.cache[require.resolve('../subscriptions/invasion.js')];
   Invasion_Subscription = require('../subscriptions/invasion.js');
-  delete require.cache[require.resolve('./emojis.js')];
 //------------------------------------------------------------------------------
 //  CACHE DATA FROM JSONS
 //------------------------------------------------------------------------------
@@ -325,35 +316,32 @@ async function load_data(){
   MAIN.gym_notes = require('../../static/gyms.json');
   delete require.cache[require.resolve('../../static/rewards.json')];
   MAIN.rewards = require('../../static/rewards.json');
-  delete require.cache[require.resolve('../../config/discords.json')];
-  MAIN.Discords = require('../../config/discords.json');
-  MAIN.config = ini.parse(fs.readFileSync('./config/config.ini', 'utf-8'));
 //------------------------------------------------------------------------------
 //  LOAD ALL FEEDS
 //------------------------------------------------------------------------------
   MAIN.Raid_Channels = [];
   for (var key in raid_channels){ MAIN.Raid_Channels.push([key, raid_channels[key]]); }
-  if(process.env.fork == 0){ console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] [Start-Up] Loaded '+MAIN.Raid_Channels.length+' Raid Feeds'); }
+  console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] [Start-Up] Loaded '+MAIN.Raid_Channels.length+' Raid Feeds');
   MAIN.Pokemon_Channels = [];
   for (var key in pokemon_channels){ MAIN.Pokemon_Channels.push([key, pokemon_channels[key]]); }
-  if(process.env.fork == 0){ console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] [Start-Up] Loaded '+MAIN.Pokemon_Channels.length+' Pokemon Feeds'); }
+  console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] [Start-Up] Loaded '+MAIN.Pokemon_Channels.length+' Pokemon Feeds');
   MAIN.PVP_Channels = [];
   for (var key in pvp_channels){ MAIN.PVP_Channels.push([key, pvp_channels[key]]); }
-  if(process.env.fork == 0){ console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] [Start-Up] Loaded '+MAIN.PVP_Channels.length+' PVP Feeds'); }
+  console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] [Start-Up] Loaded '+MAIN.PVP_Channels.length+' PVP Feeds');
   MAIN.Quest_Channels = [];
   for (var key in quest_channels){ MAIN.Quest_Channels.push([key, quest_channels[key]]); }
-  if(process.env.fork == 0){ console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] [Start-Up] Loaded '+MAIN.Quest_Channels.length+' Quest Feeds'); }
+  console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] [Start-Up] Loaded '+MAIN.Quest_Channels.length+' Quest Feeds');
   MAIN.Lure_Channels = [];
   for (var key in lure_channels){ MAIN.Lure_Channels.push([key, lure_channels[key]]); }
-  if(process.env.fork == 0){ console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] [Start-Up] Loaded '+MAIN.Lure_Channels.length+' Lure Feeds'); }
+  console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] [Start-Up] Loaded '+MAIN.Lure_Channels.length+' Lure Feeds');
   MAIN.Invasion_Channels = [];
   for (var key in invasion_channels){ MAIN.Invasion_Channels.push([key, invasion_channels[key]]); }
-  if(process.env.fork == 0){ console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] [Start-Up] Loaded '+MAIN.Invasion_Channels.length+' Invasion Feeds'); }
+  console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] [Start-Up] Loaded '+MAIN.Invasion_Channels.length+' Invasion Feeds');
 //------------------------------------------------------------------------------
 //  LOAD FILTERS
 //------------------------------------------------------------------------------
   MAIN.Filters = new Discord.Collection();
-  fs.readdir('./filters', (err,filters) => {
+  Fs.readdir('./filters', (err,filters) => {
     let filter_files = filters.filter(f => f.split('.').pop()==='json'), filter_count = 0;
     filter_files.forEach((f,i) => {
       delete require.cache[require.resolve('../../filters/'+f)]; filter_count++;
@@ -364,7 +352,7 @@ async function load_data(){
 //  LOAD GEOFENCES
 //------------------------------------------------------------------------------
   MAIN.Geofences = new Discord.Collection();
-  fs.readdir('./geofences', (err,geofences) => {
+  Fs.readdir('./geofences', (err,geofences) => {
     let geofence_files = geofences.filter(g => g.split('.').pop()==='json'), geofence_count = 0;
     geofence_files.forEach((g,i) => {;
       delete require.cache[require.resolve('../../geofences/'+g)]; geofence_count++;
@@ -395,12 +383,13 @@ MAIN.Color = {
 //------------------------------------------------------------------------------
 //  WEBHOOK PARSER
 //------------------------------------------------------------------------------
-setTimeout(function(){ MAIN.Active = true; },30000);
+setTimeout(function(){ MAIN.Active = true; },10000);
 MAIN.webhookParse = async (PAYLOAD) => {
   // IGNORE IF BOT HAS NOT BEEN FINISHED STARTUP
   if(MAIN.Active == undefined){ return; }
   // SEPARATE EACH PAYLOAD AND SORT
   await PAYLOAD.forEach( async (data,index) => {
+    if(MAIN.Ready == undefined){ return; }
     // IGNORE IF NOT A SPECIFIED OBJECT
     if(data.type == 'pokemon' || data.type == 'raid' || data.type == 'quest' || data.type == 'pokestop' || data.type == 'invasion'){
       // Speed debugging
@@ -408,7 +397,7 @@ MAIN.webhookParse = async (PAYLOAD) => {
         data.message.wdrReceived = new Date().getTime();
       }
 
-      MAIN.Discords.Servers.forEach( async (server,index) => {
+      MAIN.discord.Servers.forEach( async (server,index) => {
 
         if(InsideGeojson.polygon(server.geofence, [data.message.longitude,data.message.latitude])){
           // DEFINE AND DETERMINE TIMEZONE
@@ -451,8 +440,8 @@ MAIN.webhookParse = async (PAYLOAD) => {
                   case 2: gender = 'female'; break;
                   default: gender = 'all';
                 }
-                encounter.great_league = await pvp.CalculatePossibleCPs(MAIN,encounter.pokemon_id, encounter.form, encounter.individual_attack, encounter.individual_defense, encounter.individual_stamina, encounter.pokemon_level, gender, "great");
-                encounter.ultra_league = await pvp.CalculatePossibleCPs(MAIN,encounter.pokemon_id, encounter.form, encounter.individual_attack, encounter.individual_defense, encounter.individual_stamina, encounter.pokemon_level, gender, "ultra");
+                encounter.great_league = await MAIN.pvp.CalculatePossibleCPs(MAIN,encounter.pokemon_id, encounter.form, encounter.individual_attack, encounter.individual_defense, encounter.individual_stamina, encounter.pokemon_level, gender, "great");
+                encounter.ultra_league = await MAIN.pvp.CalculatePossibleCPs(MAIN,encounter.pokemon_id, encounter.form, encounter.individual_attack, encounter.individual_defense, encounter.individual_stamina, encounter.pokemon_level, gender, "ultra");
                 PVP_Feed.run(MAIN, encounter, area, server, timezone);
                 PVP_Subscription.run(MAIN, encounter, area, server, timezone);
               } return;
@@ -596,9 +585,7 @@ async function update_each_version(version){
 //------------------------------------------------------------------------------
 MAIN.Initialize = async (type) => {
   await load_data();
-  if(process.env.fork == 0){
-    await update_database();
-  }
+  await update_database();
   await load_arrays();
   switch(type){
     case 'startup': return bot_login();
@@ -641,23 +628,11 @@ async function bots_ready(){
 async function startup_notification(){
   // SET ACTIVE BOOLEAN TO TRUE AND BOT POOL TO ZERO
   MAIN.Next_Bot = 0;
+  MAIN.Ready = true;
   // LOG INSTANCE INITIATION
-  if(process.env.fork == 0){
-    // MAIN.pdb.query('SELECT * FROM users', function (error, rows, fields) {
-    //   let num = 0;
-    //   rows.forEach((row,index) => {
-    //     if(num == MAIN.BOTS.length-1){ num = 0; }
-    //     else{ num++; }
-    //     console.log('Set '+row.user_id+' to '+num);
-    //     MAIN.pdb.query(`UPDATE users set bot = ? WHERE user_id = ?`,[num, row.user_id], function (error, fields) { if(error){ console.error; } });
-    //   });
-    // });
-    console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] [Child#'+process.env.fork+'] Fully Initiated (Command Handler).');
-  } else {
-    console.log('[bot.js] ['+MAIN.Bot_Time(null,'stamp')+'] [Child#'+process.env.fork+'] Fully Initiated.');
-  }
+  console.log('[WDR] ['+MAIN.Bot_Time(null,'stamp')+'] [bot.js] Fully Initiated.');
   // SEND STARTUP EMBED
-  if(MAIN.config.log_channel && process.env.fork == 0){
+  if(MAIN.config.log_channel){
     let log_ping = MAIN.config.log_ping ? MAIN.config.log_ping : '';
     let ready_embed = new Discord.MessageEmbed()
       .setColor('00ff00')
@@ -676,8 +651,7 @@ async function startup_notification(){
 MAIN.login(MAIN.config.TOKENS.MAIN);
 MAIN.on('ready', async () => {
   MAIN.Initialize('startup');
-  delete require.cache[require.resolve(__dirname+'/emojis.js')];
-  Emojis = require(__dirname+'/emojis.js');
+  let Emojis = require(__dirname+'/emojis.js');
   MAIN.emotes = new Emojis.DiscordEmojis();
   MAIN.emotes.Load(MAIN, MAIN.config.EMOJI_SERVERS.split(","));
 });
